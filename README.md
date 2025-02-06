@@ -9,11 +9,12 @@ mnist-neural-network
 ├── data
 │   └── mnist-dataset        # MNIST 数据集的原始数据文件
 ├── src
+│   ├── model                # 神经网络模型参数
 │   ├── train.py             # 训练神经网络模型
 │   ├── test.py              # 测试训练好的模型
 │   └── model.py             # 定义神经网络模型的架构
 ├── requirements.txt         # 项目所需的 Python 库和依赖项
-└── README.md                # 项目的文档
+README.md                # 项目的文档
 ```
 
 ## 安装依赖

@@ -1,33 +1,91 @@
+import torch
+import torch.optim as optim
+import torch.nn.functional as F
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, Dataset
+import struct
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras import layers, models
-from tensorflow.keras.datasets import mnist
+from model import CNNNet
+import torchvision.transforms as transforms
 
-# 加载 MNIST 数据集
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train = x_train.reshape((x_train.shape[0], 28, 28, 1)).astype('float32') / 255
-x_test = x_test.reshape((x_test.shape[0], 28, 28, 1)).astype('float32') / 255
 
-# 定义模型架构
-def create_model():
-    model = models.Sequential()
-    model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Conv2D(64, (3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D((2, 2)))
-    model.add(layers.Flatten())
-    model.add(layers.Dense(64, activation='relu'))
-    model.add(layers.Dense(10, activation='softmax'))
-    return model
+# 自定义数据集类
+class MNISTDataset(Dataset):
+    def __init__(self, image_file, label_file, transform=None):
+        self.images = self._read_images(image_file)
+        self.labels = self._read_labels(label_file)
+        self.transform = transform
 
-# 编译模型
-model = create_model()
-model.compile(optimizer='adam',
-              loss='sparse_categorical_crossentropy',
-              metrics=['accuracy'])
+    def _read_images(self, filepath):
+        with open(filepath, 'rb') as f:
+            _, num_images, rows, cols = struct.unpack('>IIII', f.read(16))
+            data = np.frombuffer(f.read(), dtype=np.uint8).reshape(num_images, rows, cols)
+        return data
 
-# 训练模型
-model.fit(x_train, y_train, epochs=5, batch_size=64)
+    def _read_labels(self, filepath):
+        with open(filepath, 'rb') as f:
+            struct.unpack('>II', f.read(8))
+            data = np.frombuffer(f.read(), dtype=np.uint8)
+        return data
 
-# 保存模型
-model.save('mnist_model.h5')
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+        if self.transform:
+            image = self.transform(image)
+        return image, label
+
+
+# 定义文件
+train_images_path = "C:/Users/MinSA/Documents/Academic/Code/2024GROUPTRY/mnist-neural-network/data/mnist-dataset/versions/1/train-images.idx3-ubyte"
+train_labels_path = "C:/Users/MinSA/Documents/Academic/Code/2024GROUPTRY/mnist-neural-network/data/mnist-dataset/versions/1/train-labels.idx1-ubyte"
+test_images_path = "C:/Users/MinSA/Documents/Academic/Code/2024GROUPTRY/mnist-neural-network/data/mnist-dataset/versions/1/t10k-images.idx3-ubyte"
+test_labels_path = "C:/Users/MinSA/Documents/Academic/Code/2024GROUPTRY/mnist-neural-network/data/mnist-dataset/versions/1/t10k-labels.idx1-ubyte"
+
+# 将所有图像转换为一个大张量 (样本数, 通道, 高, 宽)
+temp_transform = transforms.ToTensor()
+dataset = MNISTDataset(train_images_path, train_labels_path, transform=temp_transform)
+data = torch.stack([img for img, _ in dataset])
+data = data.view(data.size(0), -1)  # 拉平每张图片
+
+def train(model, device, train_loader, optimizer, epoch):
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = F.nll_loss(output, target)
+        loss.backward()
+        optimizer.step()
+        if batch_idx % 100 == 0:
+            print(f'Epoch {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)}] Loss: {loss.item():.6f}')
+
+def main():
+    epochs = 10
+    mean = data.mean().item()
+    std = data.std().item()
+    mean = data.mean().item()
+    std = data.std().item()
+    print(f"mean: {mean}, std: {std}")
+    transform=transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((mean,), (std,))])
+    train_dataset = MNISTDataset(train_images_path, train_labels_path, transform=transform)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    
+    model = CNNNet().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    for epoch in range(1, epochs+1):
+        train(model, device, train_loader, optimizer, epoch)
+
+    # 保存训练好的模型
+    torch.save(model.state_dict(), "C:/Users/MinSA/Documents/Academic/Code/2024GROUPTRY/mnist-neural-network/src/model/cnn_mnist.pt")
+
+if __name__ == '__main__':
+    main()

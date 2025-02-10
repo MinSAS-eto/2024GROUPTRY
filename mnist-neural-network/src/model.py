@@ -9,7 +9,7 @@ class CNNNet(torch.nn.Module):
         self.conv3 = torch.nn.Conv2d(64, 128, kernel_size=3, padding=1)
         self.bn3 = torch.nn.BatchNorm2d(128)
         self.pool = torch.nn.MaxPool2d(2, 2)
-        self.dropout = torch.nn.Dropout(0.1)
+        self.dropout = torch.nn.Dropout(0.14)
         
         # 使用自适应池化，将特征图固定为 7x7
         self.adaptpool = torch.nn.AdaptiveAvgPool2d((7, 7))
